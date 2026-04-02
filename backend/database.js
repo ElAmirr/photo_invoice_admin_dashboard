@@ -1,33 +1,42 @@
-const Database = require('better-sqlite3');
-const path = require('path');
-const fs = require('fs');
+const { Pool } = require('pg');
 require('dotenv').config();
 
-const dbDir = path.dirname(process.env.DB_PATH || './data/licenses.db');
-if (!fs.existsSync(dbDir)) {
-    fs.mkdirSync(dbDir, { recursive: true });
-}
+// Use DATABASE_URL for Render PostgreSQL connectivity
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
 
-const db = new Database(process.env.DB_PATH || './data/licenses.db');
+// Initialize schema (PostgreSQL syntax)
+const initDB = async () => {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS licenses (
+                id SERIAL PRIMARY KEY,
+                key VARCHAR(255) UNIQUE NOT NULL,
+                machine_id VARCHAR(255),
+                email VARCHAR(255),
+                activated_at TIMESTAMP,
+                is_active INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
 
-// Initialize schema
-db.exec(`
-    CREATE TABLE IF NOT EXISTS licenses (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        key TEXT UNIQUE NOT NULL,
-        machine_id TEXT,
-        email TEXT,
-        activated_at DATETIME,
-        is_active INTEGER DEFAULT 1,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
+            CREATE TABLE IF NOT EXISTS trials (
+                id SERIAL PRIMARY KEY,
+                machine_id VARCHAR(255) UNIQUE NOT NULL,
+                start_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                is_blocked INTEGER DEFAULT 0
+            );
+        `);
+        console.log("PostgreSQL schemas initialized.");
+    } catch (err) {
+        console.error("PostgreSQL Init Error:", err);
+    }
+};
 
-    CREATE TABLE IF NOT EXISTS trials (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        machine_id TEXT UNIQUE NOT NULL,
-        start_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-        is_blocked INTEGER DEFAULT 0
-    );
-`);
+initDB();
 
-module.exports = db;
+module.exports = {
+    query: (text, params) => pool.query(text, params),
+    pool
+};

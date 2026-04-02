@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
-const jwt = require('jsonwebtoken'); // Added
+const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 const db = require('./database');
@@ -44,62 +44,78 @@ app.get('/', (req, res) => {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 // Check status (trial or licensed)
-app.post('/api/license/check', (req, res) => {
+app.post('/api/license/check', async (req, res) => {
     const { machineId } = req.body;
     if (!machineId) return res.status(400).json({ status: 'error', message: 'Missing machineId' });
 
-    // 1. Check if this machine has an active license
-    const license = db.prepare('SELECT * FROM licenses WHERE machine_id=? AND is_active=1').get(machineId);
-    if (license) {
-        const token = createToken(machineId, 'lifetime');
-        return res.json({ status: 'licensed', token, email: license.email });
+    try {
+        // 1. Check if this machine has an active license
+        const licenseRes = await db.query('SELECT * FROM licenses WHERE machine_id=$1 AND is_active=1', [machineId]);
+        const license = licenseRes.rows[0];
+        if (license) {
+            const token = createToken(machineId, 'lifetime');
+            return res.json({ status: 'licensed', token, email: license.email });
+        }
+
+        // 2. Check or create trial
+        const trialFetch = await db.query('SELECT * FROM trials WHERE machine_id=$1', [machineId]);
+        let trial = trialFetch.rows[0];
+
+        if (!trial) {
+            await db.query('INSERT INTO trials (machine_id) VALUES ($1)', [machineId]);
+            const trialCreated = await db.query('SELECT * FROM trials WHERE machine_id=$1', [machineId]);
+            trial = trialCreated.rows[0];
+        }
+
+        if (trial.is_blocked) {
+            return res.json({ status: 'trial_expired', daysLeft: 0 });
+        }
+
+        const startDate = new Date(trial.start_date);
+        const now = new Date();
+        const diffMs = now - startDate;
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        const daysLeft = Math.max(0, TRIAL_DAYS - diffDays);
+
+        if (daysLeft <= 0) {
+            await db.query('UPDATE trials SET is_blocked=1 WHERE machine_id=$1', [machineId]);
+            return res.json({ status: 'trial_expired', daysLeft: 0 });
+        }
+
+        const token = createToken(machineId, 'trial');
+        return res.json({ status: 'trial', daysLeft, token });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ status: 'error', message: 'Internal server error' });
     }
-
-    // 2. Check or create trial
-    let trial = db.prepare('SELECT * FROM trials WHERE machine_id=?').get(machineId);
-    if (!trial) {
-        db.prepare('INSERT INTO trials (machine_id) VALUES (?)').run(machineId);
-        trial = db.prepare('SELECT * FROM trials WHERE machine_id=?').get(machineId);
-    }
-
-    if (trial.is_blocked) {
-        return res.json({ status: 'trial_expired', daysLeft: 0 });
-    }
-
-    const startDate = new Date(trial.start_date);
-    const now = new Date();
-    const diffMs = now - startDate;
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    const daysLeft = TRIAL_DAYS - diffDays;
-
-    if (daysLeft <= 0) {
-        db.prepare('UPDATE trials SET is_blocked=1 WHERE machine_id=?').run(machineId);
-        return res.json({ status: 'trial_expired', daysLeft: 0 });
-    }
-
-    const token = createToken(machineId, 'trial');
-    return res.json({ status: 'trial', daysLeft, token });
 });
 
 // Activate a license key
-app.post('/api/license/activate', (req, res) => {
+app.post('/api/license/activate', async (req, res) => {
     const { machineId, licenseKey, email } = req.body;
     if (!machineId || !licenseKey) return res.status(400).json({ status: 'error', message: 'Missing fields' });
 
-    const license = db.prepare('SELECT * FROM licenses WHERE key=?').get(licenseKey.trim().toUpperCase());
+    try {
+        const key = licenseKey.trim().toUpperCase();
+        const licenseRes = await db.query('SELECT * FROM licenses WHERE key=$1', [key]);
+        const license = licenseRes.rows[0];
 
-    if (!license) return res.json({ status: 'invalid', message: 'Clé de licence invalide.' });
-    if (!license.is_active) return res.json({ status: 'invalid', message: 'Cette clé a été désactivée.' });
-    if (license.machine_id && license.machine_id !== machineId) {
-        return res.json({ status: 'invalid', message: 'Cette clé est déjà utilisée sur un autre appareil.' });
+        if (!license) return res.json({ status: 'invalid', message: 'Clé de licence invalide.' });
+        if (!license.is_active) return res.json({ status: 'invalid', message: 'Cette clé a été désactivée.' });
+        if (license.machine_id && license.machine_id !== machineId) {
+            return res.json({ status: 'invalid', message: 'Cette clé est déjà utilisée sur un autre appareil.' });
+        }
+
+        // Bind the key to this machine
+        await db.query('UPDATE licenses SET machine_id=$1, email=$2, activated_at=CURRENT_TIMESTAMP WHERE key=$3',
+            [machineId, email || '', key]);
+
+        const token = createToken(machineId, 'lifetime');
+        return res.json({ status: 'licensed', token });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ status: 'error', message: 'Internal server error' });
     }
-
-    // Bind the key to this machine
-    db.prepare('UPDATE licenses SET machine_id=?, email=?, activated_at=CURRENT_TIMESTAMP WHERE key=?')
-        .run(machineId, email || '', licenseKey.trim().toUpperCase());
-
-    const token = createToken(machineId, 'lifetime');
-    return res.json({ status: 'licensed', token });
 });
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -121,49 +137,56 @@ app.post('/admin/login', (req, res) => {
 const adminRouter = express.Router();
 adminRouter.use(authMiddleware);
 
-// GET /admin/trials — list all trial machines (machineId, start_date, days_left, is_blocked)
-adminRouter.get('/trials', (req, res) => {
-    const trials = db.prepare('SELECT * FROM trials ORDER BY start_date DESC').all();
+// GET /admin/trials — list all trial machines
+adminRouter.get('/trials', async (req, res) => {
+    try {
+        const result = await db.query('SELECT * FROM trials ORDER BY start_date DESC');
+        const trials = result.rows;
 
-    // Calculate days left (assumed 5 days trial)
-    const TRIAL_DAYS = 5;
-    const enrichedTrials = trials.map(t => {
-        const startDate = new Date(t.start_date);
-        const now = new Date();
-        const diffMs = now - startDate;
-        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-        const daysLeft = Math.max(0, TRIAL_DAYS - diffDays);
+        const enrichedTrials = trials.map(t => {
+            const startDate = new Date(t.start_date);
+            const now = new Date();
+            const diffMs = now - startDate;
+            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            const daysLeft = Math.max(0, TRIAL_DAYS - diffDays);
 
-        return {
-            ...t,
-            days_left: daysLeft
-        };
-    });
+            return {
+                ...t,
+                days_left: daysLeft
+            };
+        });
 
-    res.json(enrichedTrials);
+        res.json(enrichedTrials);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Database error' });
+    }
 });
 
-// GET /admin/licenses — list all license keys (key, email, machine_id, activated_at, is_active)
-adminRouter.get('/licenses', (req, res) => {
-    const licenses = db.prepare('SELECT * FROM licenses ORDER BY created_at DESC').all();
-    res.json(licenses);
+// GET /admin/licenses — list all license keys
+adminRouter.get('/licenses', async (req, res) => {
+    try {
+        const result = await db.query('SELECT * FROM licenses ORDER BY created_at DESC');
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Database error' });
+    }
 });
 
-// POST /admin/generate — generate N license keys { count: N }, returns the keys
-adminRouter.post('/generate', (req, res) => {
+// POST /admin/generate — generate N license keys
+adminRouter.post('/generate', async (req, res) => {
     const { count } = req.body;
     const n = parseInt(count) || 1;
     const keys = [];
 
-    const insert = db.prepare('INSERT INTO licenses (key) VALUES (?)');
-
     for (let i = 0; i < n; i++) {
         const key = generateLicenseKey();
         try {
-            insert.run(key);
+            await db.query('INSERT INTO licenses (key) VALUES ($1)', [key]);
             keys.push(key);
         } catch (e) {
-            // Collision, unlikely with 8 bytes of entropy but possible
+            // Collision
             i--;
         }
     }
@@ -172,26 +195,36 @@ adminRouter.post('/generate', (req, res) => {
 });
 
 // PATCH /admin/licenses/:key/deactivate — deactivate a key
-adminRouter.patch('/licenses/:key/deactivate', (req, res) => {
+adminRouter.patch('/licenses/:key/deactivate', async (req, res) => {
     const { key } = req.params;
-    const result = db.prepare('UPDATE licenses SET is_active = 0 WHERE key = ?').run(key);
+    try {
+        const result = await db.query('UPDATE licenses SET is_active = 0 WHERE key = $1', [key]);
 
-    if (result.changes > 0) {
-        res.json({ success: true, message: 'License deactivated' });
-    } else {
-        res.status(404).json({ error: 'License key not found' });
+        if (result.rowCount > 0) {
+            res.json({ success: true, message: 'License deactivated' });
+        } else {
+            res.status(404).json({ error: 'License key not found' });
+        }
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Database error' });
     }
 });
 
-// DELETE /admin/trials/:machineId — reset a trial (useful for customer support)
-adminRouter.delete('/trials/:machineId', (req, res) => {
+// DELETE /admin/trials/:machineId — reset a trial
+adminRouter.delete('/trials/:machineId', async (req, res) => {
     const { machineId } = req.params;
-    const result = db.prepare('DELETE FROM trials WHERE machine_id = ?').run(machineId);
+    try {
+        const result = await db.query('DELETE FROM trials WHERE machine_id = $1', [machineId]);
 
-    if (result.changes > 0) {
-        res.json({ success: true, message: 'Trial reset' });
-    } else {
-        res.status(404).json({ error: 'Trial not found' });
+        if (result.rowCount > 0) {
+            res.json({ success: true, message: 'Trial reset' });
+        } else {
+            res.status(404).json({ error: 'Trial not found' });
+        }
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Database error' });
     }
 });
 
@@ -199,5 +232,5 @@ adminRouter.delete('/trials/:machineId', (req, res) => {
 app.use('/admin', adminRouter);
 
 app.listen(PORT, () => {
-    console.log(`Shootix Admin API running on http://localhost:${PORT}`);
+    console.log(`Shootix Admin API running on port ${PORT}`);
 });
