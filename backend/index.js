@@ -36,7 +36,7 @@ function createToken(machineId, type) {
 
 // Health check
 app.get('/', (req, res) => {
-    res.json({ status: 'ok', app: 'Shootix License Server', version: '1.0.0' });
+    res.json({ status: 'ok', app: 'Shootix Unified License & Admin Server', version: '1.0.1' });
 });
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
