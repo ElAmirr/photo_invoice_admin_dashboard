@@ -5,6 +5,7 @@ import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
 import Licenses from './pages/Licenses';
+import Trials from './pages/Trials';
 import Generator from './pages/Generator';
 
 // Protected Route Component

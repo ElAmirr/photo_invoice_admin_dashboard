@@ -9,7 +9,9 @@ import {
     ExternalLink,
     ShieldAlert,
     Calendar,
-    Hash
+    Hash,
+    Laptop,
+    Activity
 } from 'lucide-react';
 
 const Licenses = () => {
@@ -110,9 +112,10 @@ const Licenses = () => {
                         <thead>
                             <tr style={{ background: 'rgba(255, 255, 255, 0.02)', borderBottom: '1px solid var(--glass-border)' }}>
                                 <th style={{ padding: '16px 20px', fontSize: '13px', fontWeight: 600, color: 'var(--text-dim)' }}>LICENSE KEY</th>
-                                <th style={{ padding: '16px 20px', fontSize: '13px', fontWeight: 600, color: 'var(--text-dim)' }}>STATUS / HWID</th>
-                                <th style={{ padding: '16px 20px', fontSize: '13px', fontWeight: 600, color: 'var(--text-dim)' }}>ACTIVATED AT</th>
-                                <th style={{ padding: '16px 20px', fontSize: '13px', fontWeight: 600, color: 'var(--text-dim)' }}>CREATED AT</th>
+                                <th style={{ padding: '16px 20px', fontSize: '13px', fontWeight: 600, color: 'var(--text-dim)' }}>PC STATUS</th>
+                                <th style={{ padding: '16px 20px', fontSize: '13px', fontWeight: 600, color: 'var(--text-dim)' }}>CONNECTED HWID</th>
+                                <th style={{ padding: '16px 20px', fontSize: '13px', fontWeight: 600, color: 'var(--text-dim)' }}>LAST SEEN</th>
+                                <th style={{ padding: '16px 20px', fontSize: '13px', fontWeight: 600, color: 'var(--text-dim)' }}>EXPIRES AT</th>
                                 <th style={{ padding: '16px 20px', fontSize: '13px', fontWeight: 600, color: 'var(--text-dim)', textAlign: 'right' }}>ACTIONS</th>
                             </tr>
                         </thead>
@@ -134,23 +137,65 @@ const Licenses = () => {
                                         </div>
                                     </td>
                                     <td style={{ padding: '16px 20px' }}>
-                                        {license.hwid ? (
-                                            <span className="glass-pill" style={{ fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#00ff88', borderColor: 'rgba(0, 255, 136, 0.2)' }}>
-                                                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#00ff88' }}></div>
-                                                {license.hwid.substring(0, 12)}...
-                                            </span>
-                                        ) : (
-                                            <span className="glass-pill" style={{ fontSize: '12px', color: 'var(--text-dim)' }}>Available</span>
-                                        )}
+                                        {(() => {
+                                            if (!license.hwid) return <span style={{ color: 'var(--text-dim)', fontSize: '12px' }}>Inactive</span>;
+                                            const isOnline = license.last_heartbeat && (new Date() - new Date(license.last_heartbeat)) < 5 * 60 * 1000;
+                                            return (
+                                                <span className="glass-pill" style={{
+                                                    fontSize: '11px',
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: '6px',
+                                                    color: isOnline ? '#00ff88' : 'var(--text-dim)',
+                                                    borderColor: isOnline ? 'rgba(0, 255, 136, 0.2)' : 'var(--glass-border)',
+                                                    textTransform: 'uppercase',
+                                                    fontWeight: '700'
+                                                }}>
+                                                    <div style={{
+                                                        width: '6px',
+                                                        height: '6px',
+                                                        borderRadius: '50%',
+                                                        background: isOnline ? '#00ff88' : '#666',
+                                                        boxShadow: isOnline ? '0 0 10px #00ff88' : 'none'
+                                                    }} className={isOnline ? 'animate-pulse' : ''}></div>
+                                                    {isOnline ? 'Online' : 'Offline'}
+                                                </span>
+                                            );
+                                        })()}
                                     </td>
-                                    <td style={{ padding: '16px 20px', fontSize: '13px', color: 'var(--text-dim)' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                            <Calendar size={14} />
-                                            {license.activated_at ? new Date(license.activated_at).toLocaleDateString() : '—'}
+                                    <td style={{ padding: '16px 20px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-dim)', fontSize: '13px' }}>
+                                            <Laptop size={14} />
+                                            {license.hwid ? license.hwid.substring(0, 12) + '...' : '—'}
                                         </div>
                                     </td>
                                     <td style={{ padding: '16px 20px', fontSize: '13px', color: 'var(--text-dim)' }}>
-                                        {license.created_at ? new Date(license.created_at).toLocaleDateString() : '—'}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <Activity size={14} />
+                                            {license.last_heartbeat ? (() => {
+                                                const diff = Math.floor((new Date() - new Date(license.last_heartbeat)) / 1000);
+                                                if (diff < 60) return 'Just now';
+                                                if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+                                                if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+                                                return new Date(license.last_heartbeat).toLocaleDateString();
+                                            })() : 'Never'}
+                                        </div>
+                                    </td>
+                                    <td style={{ padding: '16px 20px', fontSize: '13px' }}>
+                                        {license.expires_at ? (
+                                            <div style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '8px',
+                                                color: new Date() > new Date(license.expires_at) ? '#ff4b4b' : 'var(--text-dim)',
+                                                fontWeight: new Date() > new Date(license.expires_at) ? '600' : 'normal'
+                                            }}>
+                                                {new Date() > new Date(license.expires_at) ? <ShieldAlert size={14} /> : <Calendar size={14} />}
+                                                {new Date(license.expires_at).toLocaleDateString()}
+                                            </div>
+                                        ) : (
+                                            <span style={{ color: 'var(--text-dim)', opacity: 0.7 }}>Lifetime</span>
+                                        )}
                                     </td>
                                     <td style={{ padding: '16px 20px', textAlign: 'right' }}>
                                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>

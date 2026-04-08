@@ -14,12 +14,13 @@ const Generator = () => {
     const [newKey, setNewKey] = useState('');
     const [loading, setLoading] = useState(false);
     const [copied, setCopied] = useState(false);
+    const [durationDays, setDurationDays] = useState(null);
 
     const generateKey = async () => {
         setLoading(true);
         setCopied(false);
         try {
-            const res = await api.post('/api/admin/generate-key');
+            const res = await api.post('/api/admin/generate-key', { durationDays });
             if (res.data && res.data.key) {
                 setNewKey(res.data.key);
             }
@@ -65,6 +66,31 @@ const Generator = () => {
                 <p style={{ color: 'var(--text-dim)', marginBottom: '32px', maxWidth: '400px', margin: '0 auto 32px' }}>
                     This will create a new unique license key in the system that can be assigned to a user or machine later.
                 </p>
+
+                <div style={{ marginBottom: '32px', textAlign: 'left', maxWidth: '320px', margin: '0 auto 32px' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: 'var(--text-dim)' }}>
+                        License Duration
+                    </label>
+                    <select
+                        value={durationDays || ''}
+                        onChange={(e) => setDurationDays(e.target.value ? parseInt(e.target.value) : null)}
+                        style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            background: 'rgba(255, 255, 255, 0.05)',
+                            border: '1px solid var(--glass-border)',
+                            borderRadius: '12px',
+                            color: '#fff',
+                            outline: 'none',
+                            cursor: 'pointer',
+                            fontSize: '15px'
+                        }}
+                    >
+                        <option value="" style={{ background: '#1a0b2e' }}>Lifetime (No expiration)</option>
+                        <option value="30" style={{ background: '#1a0b2e' }}>1 Month (30 days)</option>
+                        <option value="365" style={{ background: '#1a0b2e' }}>1 Year (365 days)</option>
+                    </select>
+                </div>
 
                 {!newKey ? (
                     <PremiumButton

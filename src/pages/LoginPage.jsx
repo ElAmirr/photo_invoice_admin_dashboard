@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import GlassCard from '../components/GlassCard';
 import PremiumButton from '../components/PremiumButton';
 import { ShieldCheck, Lock } from 'lucide-react';
+import api from '../api/api';
 
 const LoginPage = () => {
     const [secret, setSecret] = useState('');
@@ -27,11 +28,16 @@ const LoginPage = () => {
             // If success, proceed with login
             login(secret);
         } catch (err) {
-            console.error('Validation error:', err.response?.data || err.message);
-            if (err.response?.status === 401) {
-                setError('Invalid Admin Secret. Check your Render environment variables.');
+            console.error('Full Error Object:', err);
+            const status = err.response?.status;
+            const data = err.response?.data;
+
+            if (status === 401) {
+                setError(`Invalid Secret (401). Value sent: "${secret}"`);
+            } else if (status === 404) {
+                setError(`Server error (404). Check if baseURL is correct.`);
             } else {
-                setError('Connection error. Is the backend redeployed?');
+                setError(`Connection Error: ${err.message}. Status: ${status || 'Unknown'}`);
             }
         } finally {
             setLoading(false);
