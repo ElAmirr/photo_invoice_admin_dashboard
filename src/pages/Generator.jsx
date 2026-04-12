@@ -80,13 +80,13 @@ const Generator = () => {
                     width: '64px',
                     height: '64px',
                     borderRadius: '16px',
-                    background: 'rgba(212, 0, 212, 0.1)',
+                    background: 'rgba(147, 51, 234, 0.1)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     margin: '0 auto 20px',
                     color: 'var(--primary)',
-                    border: '1px solid rgba(212, 0, 212, 0.2)'
+                    border: '1px solid rgba(147, 51, 234, 0.2)'
                 }}>
                     <Zap size={32} fill="currentColor" />
                 </div>

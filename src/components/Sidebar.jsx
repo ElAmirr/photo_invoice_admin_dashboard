@@ -37,14 +37,14 @@ const Sidebar = () => {
                 <h2 style={{
                     fontSize: '24px',
                     fontWeight: '700',
-                    background: 'linear-gradient(135deg, #fff 0%, var(--primary) 100%)',
+                    background: 'linear-gradient(135deg, #A855F7 0%, #9333EA 50%, #C026D3 100%)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '10px'
                 }}>
-                    <Settings className="text-primary" size={28} style={{ color: 'var(--primary)' }} />
+                    <img src="/logo.png" alt="Shootix" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
                     Shootix
                 </h2>
                 <p style={{ fontSize: '12px', color: 'var(--text-dim)', marginTop: '4px' }}>Admin Licensing</p>
@@ -65,9 +65,9 @@ const Sidebar = () => {
                                     borderRadius: '12px',
                                     color: isActive ? '#fff' : 'var(--text-dim)',
                                     textDecoration: 'none',
-                                    background: isActive ? 'rgba(212, 0, 212, 0.15)' : 'transparent',
+                                    background: isActive ? 'rgba(147, 51, 234, 0.15)' : 'transparent',
                                     transition: 'var(--transition)',
-                                    border: isActive ? '1px solid rgba(212, 0, 212, 0.3)' : '1px solid transparent'
+                                    border: isActive ? '1px solid rgba(147, 51, 234, 0.3)' : '1px solid transparent'
                                 })}
                             >
                                 <item.icon size={20} />
