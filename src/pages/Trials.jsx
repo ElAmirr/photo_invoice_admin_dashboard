@@ -94,7 +94,7 @@ const Trials = () => {
                                 <tr key={trial.id} style={{ borderBottom: '1px solid var(--glass-border)', transition: 'var(--transition)' }}>
                                     <td style={{ padding: '16px 20px' }}>
                                         {(() => {
-                                            const isOnline = trial.last_heartbeat && (new Date() - new Date(trial.last_heartbeat)) < 5 * 1000 * 60;
+                                            const isOnline = trial.last_heartbeat && (new Date() - new Date(trial.last_heartbeat)) < 10 * 1000 * 60;
                                             return (
                                                 <span className="glass-pill" style={{
                                                     fontSize: '11px',

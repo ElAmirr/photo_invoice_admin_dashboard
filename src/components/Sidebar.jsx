@@ -16,7 +16,6 @@ const Sidebar = () => {
     const navItems = [
         { name: 'Dashboard', path: '/', icon: LayoutDashboard },
         { name: 'Licenses', path: '/licenses', icon: ShieldCheck },
-        { name: 'Trials', path: '/trials', icon: UserCheck },
         { name: 'Key Generator', path: '/generator', icon: Key },
     ];
 
