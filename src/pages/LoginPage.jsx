@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import GlassCard from '../components/GlassCard';
 import PremiumButton from '../components/PremiumButton';
@@ -7,9 +8,17 @@ import api from '../api/api';
 
 const LoginPage = () => {
     const [secret, setSecret] = useState('');
-    const { login } = useAuth();
+    const { login, isAuthenticated } = useAuth();
+    const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+
+    // If already authenticated, redirect to dashboard immediately
+    useEffect(() => {
+        if (isAuthenticated) {
+            navigate('/', { replace: true });
+        }
+    }, [isAuthenticated, navigate]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -27,6 +36,7 @@ const LoginPage = () => {
 
             // If success, proceed with login
             login(secret);
+            navigate('/', { replace: true });
         } catch (err) {
             console.error('Full Error Object:', err);
             const status = err.response?.status;
