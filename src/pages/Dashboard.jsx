@@ -51,13 +51,13 @@ const Dashboard = () => {
 
     return (
         <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+            <div className="responsive-header">
                 <div>
                     <h1 style={{ fontSize: '32px', fontWeight: '700' }}>Overview</h1>
                     <p style={{ color: 'var(--text-dim)' }}>Quick summary of your licensing system</p>
                 </div>
-                <Link to="/generator">
-                    <PremiumButton icon={Plus}>Quick Generate</PremiumButton>
+                <Link to="/generator" style={{ width: window.innerWidth < 768 ? '100%' : 'auto' }}>
+                    <PremiumButton icon={Plus} style={{ width: '100%', justifyContent: 'center' }}>Quick Generate</PremiumButton>
                 </Link>
             </div>
 

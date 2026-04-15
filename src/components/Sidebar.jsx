@@ -6,11 +6,12 @@ import {
     ShieldCheck,
     LogOut,
     Settings,
-    UserCheck
+    UserCheck,
+    X
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-const Sidebar = () => {
+const Sidebar = ({ isOpen, onClose }) => {
     const { logout } = useAuth();
 
     const navItems = [
@@ -20,7 +21,7 @@ const Sidebar = () => {
     ];
 
     return (
-        <aside className="sidebar glass" style={{
+        <aside className={`sidebar glass ${isOpen ? 'open' : ''}`} style={{
             position: 'fixed',
             left: 0,
             top: 0,
@@ -33,7 +34,14 @@ const Sidebar = () => {
             flexDirection: 'column',
             zIndex: 100
         }}>
-            <div className="sidebar-header" style={{ marginBottom: '40px', padding: '0 10px' }}>
+            <div className="sidebar-header" style={{ marginBottom: '40px', padding: '0 10px', position: 'relative' }}>
+                <button
+                    className="mobile-only"
+                    onClick={onClose}
+                    style={{ position: 'absolute', right: '-5px', top: '-5px', background: 'transparent', border: 'none', color: 'var(--text-dim)', padding: '10px' }}
+                >
+                    <X size={24} />
+                </button>
                 <h2 style={{
                     fontSize: '24px',
                     fontWeight: '700',
@@ -56,6 +64,7 @@ const Sidebar = () => {
                         <li key={item.path} style={{ marginBottom: '8px' }}>
                             <NavLink
                                 to={item.path}
+                                onClick={onClose}
                                 className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
                                 style={({ isActive }) => ({
                                     display: 'flex',
@@ -79,7 +88,10 @@ const Sidebar = () => {
             </nav>
 
             <button
-                onClick={logout}
+                onClick={() => {
+                    onClose();
+                    logout();
+                }}
                 style={{
                     marginTop: 'auto',
                     display: 'flex',

@@ -98,7 +98,12 @@ const Generator = () => {
 
                 {!newKey ? (
                     <div style={{ textAlign: 'left', maxWidth: '600px', margin: '0 auto' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: window.innerWidth < 768 ? '1fr' : '1fr 1fr',
+                            gap: '20px',
+                            marginBottom: '24px'
+                        }}>
                             <div>
                                 <label style={labelStyle}>Full Name *</label>
                                 <input style={inputStyle} name="customerName" placeholder="Ahmed Ben Ali" value={formData.customerName} onChange={handleInputChange} />
